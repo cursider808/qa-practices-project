@@ -1,0 +1,47 @@
+﻿name: CI/CD Continuous Testing Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  ci_cd_pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository (Git)
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12 (Build)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (Build)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Static Code Analysis (Analysis)
+        run: |
+          ruff check app/ tests/ --ignore E501
+
+      - name: Run Automated Tests & Quality Gate (Test + Quality Gate)
+        run: |
+          python -m pytest --cov=app --cov-report=xml --cov-report=html --cov-fail-under=80 --junitxml=test-results.xml
+
+      - name: Upload Test & Coverage Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-test-artifacts
+          path: |
+            test-results.xml
+            htmlcov/
+
+      - name: Deploy Application (Deploy)
+        if: success()
+        run: |
+          echo "All Quality Gates passed! Deploying application..."
